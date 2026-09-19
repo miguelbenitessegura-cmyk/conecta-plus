@@ -25,6 +25,7 @@ export default function OnboardingPage() {
       const uid = data.session.user.id;
       setUserId(uid);
 
+      // Verificamos si ya existe la fila en public.users; si no, la creamos
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -183,6 +184,7 @@ export default function OnboardingPage() {
     );
   }
 
+  // step === "done"
   return (
     <main style={containerStyle}>
       <h1>✅ ¡Listo!</h1>
