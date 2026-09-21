@@ -14,7 +14,7 @@ export default function Home() {
     >
       <h1>Conecta+</h1>
       <p>Mensajeria, compras y negocios en un solo lugar.</p>
-      
+      <a
         href="/login"
         style={{
           marginTop: 24,
