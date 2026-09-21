@@ -1,6 +1,6 @@
 export default function Home() {
   return (
-    </main>
+    <main
       style={{
         display: "flex",
         flexDirection: "column",
