@@ -1,6 +1,6 @@
 export default function Home() {
-  return (  
-  </main>
+  return (
+    <div
       style={{
         display: "flex",
         flexDirection: "column",
@@ -12,8 +12,8 @@ export default function Home() {
         textAlign: "center",
       }}
     >
-      <h1>Conecta+ 🚀</h1>
-      <p>Mensajería, compras y negocios en un solo lugar.</p>
+      <h1>Conecta+</h1>
+      <p>Mensajeria, compras y negocios en un solo lugar.</p>
       
         href="/login"
         style={{
@@ -28,6 +28,6 @@ export default function Home() {
       >
         Comenzar
       </a>
-    </main>
+    </div>
   );
 }
