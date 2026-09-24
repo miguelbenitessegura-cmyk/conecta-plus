@@ -1,68 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  stock_status: string;
-  is_active: boolean;
-};
-
-type LoadState = "loading" | "ready" | "no_business" | "error";
-
-export default function ProductsListPage() {
-  const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+export default function NewProductPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [stockStatus, setStockStatus] = useState("available");
+  const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    const load = async () => {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-
-      if (sessionError || !sessionData.session) {
-        setLoadState("error");
-        setErrorMsg("No encontramos tu sesión. Volvé a iniciar sesión.");
-        return;
-      }
-
-      const uid = sessionData.session.user.id;
-
-      const { data: business, error: businessError } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("user_id", uid)
-        .maybeSingle();
-
-      if (businessError || !business) {
-        setLoadState("no_business");
-        return;
-      }
-
-      setBusinessId(business.id);
-
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("id, name, price, stock_status, is_active")
-        .eq("business_id", business.id)
-        .order("created_at", { ascending: false });
-
-      if (productsError) {
-        setLoadState("error");
-        setErrorMsg("No pudimos cargar tus productos.");
-        return;
-      }
-
-      setProducts(productsData || []);
-      setLoadState("ready");
-    };
-
-    load();
-  }, []);
 
   const containerStyle: React.CSSProperties = {
     display: "flex",
@@ -73,98 +22,150 @@ export default function ProductsListPage() {
     minHeight: "100vh",
   };
 
-  if (loadState === "loading") {
-    return (
-      <div style={containerStyle}>
-        <p>Cargando...</p>
-      </div>
-    );
-  }
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    fontSize: 15,
+    marginBottom: 16,
+    boxSizing: "border-box",
+  };
 
-  if (loadState === "error") {
-    return (
-      <div style={containerStyle}>
-        <p style={{ color: "#DC2626" }}>{errorMsg}</p>
-      </div>
-    );
-  }
+  const labelStyle: React.CSSProperties = {
+    fontWeight: 600,
+    fontSize: 14,
+    marginBottom: 6,
+    display: "block",
+  };
 
-  if (loadState === "no_business") {
-    return (
-      <div style={containerStyle}>
-        <p>Todavía no tenés un perfil de comercio creado.</p>
-        <a href="/onboarding" style={{ color: "#4F46E5" }}>
-          Crear perfil de comercio
-        </a>
-      </div>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (!name.trim()) {
+      setErrorMsg("Ponele un nombre al producto.");
+      return;
+    }
+
+    const priceNumber = Number(price);
+    if (!price || isNaN(priceNumber) || priceNumber < 0) {
+      setErrorMsg("Ingresá un precio válido.");
+      return;
+    }
+
+    setSaving(true);
+
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    if (sessionError || !sessionData.session) {
+      setErrorMsg("No encontramos tu sesión. Volvé a iniciar sesión.");
+      setSaving(false);
+      return;
+    }
+
+    const uid = sessionData.session.user.id;
+
+    const { data: business, error: businessError } = await supabase
+      .from("business_profiles")
+      .select("id")
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    if (businessError || !business) {
+      setErrorMsg("No encontramos tu perfil de comercio.");
+      setSaving(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("products").insert({
+      business_id: business.id,
+      name: name.trim(),
+      price: priceNumber,
+      description: description.trim() || null,
+      stock_status: stockStatus,
+      is_active: true,
+    });
+
+    setSaving(false);
+
+    if (insertError) {
+      setErrorMsg("No pudimos guardar el producto. Probá de nuevo.");
+      return;
+    }
+
+    router.push("/business/products");
+  };
 
   return (
     <div style={containerStyle}>
       <div style={{ width: "100%", maxWidth: 480 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 24,
-          }}
-        >
-          <h1>Tus productos</h1>
-          <a href="/business/products/new" style={addButtonStyle}>
-            + Agregar
-          </a>
-        </div>
+        <h1 style={{ marginBottom: 24 }}>Agregar producto</h1>
 
-        {products.length === 0 ? (
-          <p style={{ color: "#666" }}>
-            Todavía no cargaste ningún producto.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {products.map((product) => (
-              <div key={product.id} style={productCardStyle}>
-                <div>
-                  <p style={{ fontWeight: 600, margin: 0 }}>{product.name}</p>
-                  <p style={{ color: "#666", margin: 0, fontSize: 14 }}>
-                    {stockLabel(product.stock_status)}
-                    {!product.is_active && " · Pausado"}
-                  </p>
-                </div>
-                <p style={{ fontWeight: 700, margin: 0 }}>
-                  ${product.price}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        <form onSubmit={handleSubmit}>
+          <label style={labelStyle}>Nombre del producto</label>
+          <input
+            style={inputStyle}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej: Zapatillas urbanas"
+          />
+
+          <label style={labelStyle}>Precio</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Ej: 1500"
+          />
+
+          <label style={labelStyle}>Descripción (opcional)</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Contá algo más sobre el producto"
+          />
+
+          <label style={labelStyle}>Stock</label>
+          <select
+            style={inputStyle}
+            value={stockStatus}
+            onChange={(e) => setStockStatus(e.target.value)}
+          >
+            <option value="available">Disponible</option>
+            <option value="out_of_stock">Sin stock</option>
+            <option value="unknown">No informado</option>
+          </select>
+
+          {errorMsg && (
+            <p style={{ color: "#DC2626", marginBottom: 16 }}>{errorMsg}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              borderRadius: 8,
+              background: saving ? "#9CA3AF" : "#4F46E5",
+              color: "white",
+              border: "none",
+              fontWeight: 600,
+              fontSize: 15,
+              cursor: saving ? "default" : "pointer",
+            }}
+          >
+            {saving ? "Guardando..." : "Guardar producto"}
+          </button>
+        </form>
       </div>
     </div>
   );
 }
-
-function stockLabel(status: string) {
-  if (status === "available") return "Disponible";
-  if (status === "out_of_stock") return "Sin stock";
-  return "Stock no informado";
-}
-
-const addButtonStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  borderRadius: 8,
-  background: "#4F46E5",
-  color: "white",
-  textDecoration: "none",
-  fontWeight: 600,
-  fontSize: 14,
-};
-
-const productCardStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: 16,
-  borderRadius: 10,
-  border: "1px solid #e5e5e5",
-};
